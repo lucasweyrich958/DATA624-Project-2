@@ -9,15 +9,119 @@ output: html_document
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 ```
 
+This is role playing. I am your new boss. I am in charge of production at ABC Beverage and you are a team of data scientists reporting to me. My leadership has told me that new regulations are requiring us to understand our manufacturing process, the predictive factors and be able to report to them our predictive model of PH.
+
+Please use the historical data set I am providing. Build and report the factors in BOTH a technical and non-technical report. I like to use Word and Excel. Please provide your non-technical report in a business friendly readable document and your predictions in an Excel readable format. The technical report should show clearly the models you tested and how you selected your final approach.
+
+# Exploratory Data Analysis (EDA)
+
 ```{r}
 library(tidyverse)
 library(readxl)
+library(corrplot)
+library(DataExplorer)
+library(caret)
 ```
 
+### Loading the training data
 ```{r}
 raw <- read_excel("Training Data.xlsx")
-head(raw)
+
+# Getting a general sense of the data
+glimpse(raw)
 ```
+
+The training set contains  2571 observations and 33 variables, including the target variable `PH`. Other than the `Brand Code` variable, which is a chr type, the rest of the production factors are stored as numeric types. 
+
+### Distribution of variables
+Let's get a better sense of the data by plotting their distributions. 
+```{r}
+# Distribution of numerical variables
+plot_histogram(df)
+```
+
+There is a mix of normal, skewed, and multimodal distributions across the production variables. Several predictors, such as `Carb.Pressure`, `Carb.Temp`, `Carb.Volume`, `Fill.Ounces`, `PC.Volume`, and `PSC`, exhibit a normal, unimodal distribution. In contrast, variables such as `Density`, `Carb.Rel`, `Carb.Flow`,` Filler.Speed`, `Balling` and `Balling.Lvl` show a clear bimodal or multimodal pattern. Some predictors, most notably `Oxygen.Filter`, `MFR`, `Hyd.Pressure1`, `Hyd.Pressure2`, and `Hyd.Pressure3` are heavily right skewed with many near zero values and a long tail of larger values. These distributions suggest the presence of potential outliers and cleaning may be required before modeling.
+
+```{r}
+# Bar plot for the categorical variable
+ggplot(raw, aes(x = `Brand Code`)) +
+  geom_bar() +
+  theme_minimal() +
+  labs(
+    title = "Distribution of Brand Code",
+    x = "Brand",
+    y = "Frequency (Count)"
+  )
+```
+
+The categorical variable `Brand Code` is unevenly distributed. Brand B accounts for almost half of all the observations while Brands A, C, and D are significantly smaller. Because of this imbalance, the usefulness of this variable in the modeling will need to be evaluated, and it maybe removed depending on its predictive contribution. 
+
+```{r}
+# Checking pH of each Brand
+ggplot(raw, aes(x = `Brand Code`, y = PH)) +
+  geom_boxplot() +
+  facet_wrap(~ `Brand Code`,scales = "free") +
+  theme_minimal()
+```
+
+This boxplots show that all brands have similar PH distributions centered around 8.5. 
+
+### Missing Values
+
+Let's check for missing values in the training data set.
+
+```{r}
+# Count the number of NA values in each column
+missing_counts <- colSums(is.na(raw))
+missing_counts
+```
+
+Most of the predictors have a small percentage of missing values (NA). the predictor `MFR`has the highest missing value count at 212, about 8.2% of the total observations. The target variable, `PH`, also has 4 missing values. Before we begin modeling, these missing values will first need to be addressed.
+
+Let's start by removing the 4 rows where the rows where `PH` value is missing. We are removing them rather than imputing them because a model cannot be trained on data that has no target to learn from, doing so could introduce bias. Also, the 4 rows represent less than 1% of the total data and removing them should not have any significant impact on the model's performance.
+
+For the other missing values, they will be imputed with the median values since many of the variables were skewed or contained extreme values. Since many of the distribution plots were not symmetrical, imputing with the mean can be influenced by the outliers. Using the median ensures that the imputation does not distort the original distribution of the variables or bias the model 
+```{r}
+# Removing the rows where PH is missing
+df <- raw %>%
+  drop_na(PH)
+
+# Imputing the missing values with the median
+df_imputed <- df %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.na(.), median(., na.rm = TRUE), .)))
+
+# Count the number of NA values in each column
+missing_counts <- colSums(is.na(df_imputed))
+missing_counts
+```
+
+There is still 120 missing values (~5%) in the categorical variable `Brand Code`. Imputing these missing values with the most common brand would likely distort the data and bias the model. Instead, we can replace the NA values with a new "Unknown" category. 
+```{r}
+# Replacing NA values with Unknown
+df_imputed <- df_imputed %>%
+  mutate(`Brand Code` = ifelse(is.na(`Brand Code`), "Unknown", `Brand Code`))
+```
+
+### Outliers
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
